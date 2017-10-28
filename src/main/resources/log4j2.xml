@@ -32,6 +32,9 @@
         <!-- Reduce DM verbosity -->
         <AsyncLogger name="org.jetel" level="WARN" />
         <AsyncLogger name="Tracking" level="WARN" />
+        
+        <!-- Application package -->
+        <AsyncLogger name="cz.aimtec" level="INFO"/>
 
         <AsyncRoot level="INFO">
             <AppenderRef ref="file" />

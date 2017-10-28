@@ -32,6 +32,7 @@ public class TransformBodyPart extends AbstractMessageTransformer {
         try {
             // Multipart Body
             if (dh.getContent() instanceof MimeMultipart) {
+                logger.info("Multipart Body found");
                 MimeMultipart mime = (MimeMultipart) dh.getContent();
                 for (int i = 0; i < mime.getCount(); i++) {
                     BodyPart part = mime.getBodyPart(i);
@@ -47,13 +48,14 @@ public class TransformBodyPart extends AbstractMessageTransformer {
             }
             // Attachments
             else {
-                logger.debug("Name: " + dh.getName());
+                String fileName = dh.getName();
                 InputStream istream = dh.getInputStream();
                 String result = new BufferedReader(new InputStreamReader(istream)).lines().collect(Collectors.joining("\n"));
-                String mimeType = new MimetypesFileTypeMap().getContentType(dh.getName());
+                String mimeType = new MimetypesFileTypeMap().getContentType(fileName);
+                logger.info("Attachment found " + fileName + " " + mimeType);
                 logger.debug("Content:\n" + result);
                 message.setProperty("content", "attachment", PropertyScope.INVOCATION);
-                message.setProperty("file", dh.getName(), PropertyScope.INVOCATION);
+                message.setProperty("file", fileName, PropertyScope.INVOCATION);
                 message.setProperty("contentType", mimeType, PropertyScope.INVOCATION);
                 message.setPayload(result);
             }

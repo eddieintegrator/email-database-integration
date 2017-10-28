@@ -24,13 +24,14 @@ http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/em
         <imaps:inbound-endpoint host="${gmail.imap.host}" port="${gmail.imap.port}" user="${gmail.usr}" password="${gmail.pwd}" responseTimeout="10000" doc:name="GMAIL"
             connector-ref="IMAP" />
         <logger message="#['New email received with subject &quot;' + message.inboundProperties.subject +'&quot; from ' + message.inboundProperties.From]" level="INFO"
-            doc:name="Logger" />
+            doc:name="Email Received" />
         <expression-transformer doc:name="Get Attachments">
             <return-argument evaluator="attachments-list" expression="*" />
         </expression-transformer>
         <collection-splitter doc:name="Collection Splitter" />
         <custom-transformer class="cz.aimtec.gmail.TransformBodyPart" doc:name="Transform Body Part" />
         <expression-filter expression="#[flowVars.contentType == &quot;text/csv&quot;]" doc:name="Release CSV" />
+        <logger message="#['CSV Content found ' + flowVars.file]" level="INFO" doc:name="CSV Content found"/>
         <set-payload value="#[message.payload]" mimeType="application/csv" doc:name="Set CSV MIME Type"/>
         <dw:transform-message doc:name="Transformation" metadata:id="da7a62f7-7e2d-4187-91ba-e2961f021940">
             <dw:input-payload />
@@ -39,13 +40,13 @@ http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/em
 ---
 payload]]></dw:set-payload>
         </dw:transform-message>
-        <logger message="#[payload]" level="INFO" doc:name="Logg Payload" />
         <string-to-byte-array-transformer doc:name="String to Byte Array"/>
 
         <set-attachment attachmentName="#[flowVars.file+'.txt']" value="#[message.payload]" contentType="application/json" doc:name="Attachment" />
         <set-payload value="Nazd&#225;rek" mimeType="text/plain" doc:name="Set Email Body"/>
         <smtps:outbound-endpoint host="${gmail.smtp.host}" port="${gmail.smtp.port}" user="${gmail.usr}" password="${gmail.pwd}"  responseTimeout="10000"
             doc:name="SMTP" subject="Hello" to="#[message.inboundProperties.From]" />
+        <logger message="#['Response sent to ' + message.inboundProperties.From]" level="INFO" doc:name="Email Sent"/>
     </flow>
 
 </mule>
