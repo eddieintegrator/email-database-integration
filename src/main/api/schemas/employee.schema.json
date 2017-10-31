@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "id": "http://aimtec.cz/employee.json",
+  "properties": {
+    "birth_date": {
+      "id": "/properties/birth_date",
+      "type": "string"
+    },
+    "emp_no": {
+      "id": "/properties/emp_no",
+      "type": "integer"
+    },
+    "first_name": {
+      "id": "/properties/first_name",
+      "type": "string"
+    },
+    "gender": {
+      "id": "/properties/gender",
+      "type": "string",
+      "enum": [
+        "M",
+        "F"
+      ]
+    },
+    "hire_date": {
+      "id": "/properties/hire_date",
+      "type": "string"
+    },
+    "last_name": {
+      "id": "/properties/last_name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "last_name",
+    "gender",
+    "first_name",
+    "birth_date",
+    "hire_date"
+  ],
+  "type": "object"
+}

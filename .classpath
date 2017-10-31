@@ -10,5 +10,6 @@
 	<classpathentry kind="src" path="src/main/wsdl"/>
 	<classpathentry kind="src" path="src/test/munit"/>
 	<classpathentry kind="src" path="src/main/api"/>
+	<classpathentry kind="lib" path="src/main/resources/sqlite-jdbc-3.20.0.jar"/>
 	<classpathentry kind="output" path="target/classes"/>
 </classpath>
