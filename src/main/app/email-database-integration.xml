@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:smtps="http://www.mulesoft.org/schema/mule/smtps" xmlns:imaps="http://www.mulesoft.org/schema/mule/imaps" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:context="http://www.springframework.org/schema/context" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+<mule xmlns:quartz="http://www.mulesoft.org/schema/mule/quartz" xmlns:secure-property-placeholder="http://www.mulesoft.org/schema/mule/secure-property-placeholder" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+    xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+    xmlns:spring="http://www.springframework.org/schema/beans" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:smtps="http://www.mulesoft.org/schema/mule/smtps"
+    xmlns:imaps="http://www.mulesoft.org/schema/mule/imaps" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/smtps http://www.mulesoft.org/schema/mule/smtps/current/mule-smtps.xsd
@@ -8,37 +13,188 @@ http://www.mulesoft.org/schema/mule/imaps http://www.mulesoft.org/schema/mule/im
 http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
 http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
 http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
-http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
-    <context:property-placeholder location="application.properties"/>
-    <imaps:connector name="IMAP" moveToFolder="${gmail.processed}" validateConnections="true" doc:name="IMAP"/>
-    <db:generic-config name="SQLite" url="jdbc:sqlite:${sqlite.path}/${sqlite.dbfile}" driverClassName="org.sqlite.JDBC" doc:name="Generic Database Configuration">
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/secure-property-placeholder http://www.mulesoft.org/schema/mule/secure-property-placeholder/current/mule-secure-property-placeholder.xsd
+http://www.mulesoft.org/schema/mule/quartz http://www.mulesoft.org/schema/mule/quartz/current/mule-quartz.xsd">
+
+    <imaps:connector name="IMAP" moveToFolder="${gmail.processed}" validateConnections="true" doc:name="IMAP" />
+
+    <db:generic-config name="SQLite" url="jdbc:sqlite:${app.home}${file.separator}${sqlite.dbfile}" driverClassName="org.sqlite.JDBC" doc:name="Generic Database Configuration">
         <db:connection-properties>
-            <db:property key="encoding" value="UTF-8"/>
+            <db:property key="encoding" value="UTF-8" />
         </db:connection-properties>
     </db:generic-config>
-    <http:listener-config name="HTTPListenerConfiguration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+
+    <scripting:transformer name="stocks_by_materials" doc:name="Groovy">
+        <scripting:script engine="Groovy"  ><![CDATA[import groovy.xml.MarkupBuilder
+
+def pw = new StringWriter()
+def html = new MarkupBuilder(pw)
+
+html.div {
+    h1("Stocks by material report")
+    table(border: 1) {
+        thead {
+            tr {
+                th("Material ID")
+                th("Name")
+                th("Units")
+            }
+            tbody {
+                payload.each { row ->
+                    tr {
+                        td(row.mat_id)
+                        td(row.name)
+                        td(row.units + " " + row.measure)
+                    }
+                }
+            }
+        }
+    }
+}
+
+payload = pw.toString()]]></scripting:script>
+    </scripting:transformer>
+
+    <secure-property-placeholder:config name="Secure_Property_Placeholder" key="SpS4uu-ju7vQFtSG" location="application.properties" doc:name="Secure Property Placeholder" />
+    <scripting:transformer name="stocks_material_threshold" doc:name="Script">
+        <scripting:script engine="Groovy"><![CDATA[import groovy.xml.MarkupBuilder
+
+def pw = new StringWriter()
+def html = new MarkupBuilder(pw)
+
+html.div {
+    h1("Stocks by material threshold report")
+    table(border: 1) {
+        thead {
+            tr {
+                th("Material ID")
+                th("Name")
+                th("Units")
+                th("Threshold")
+            }
+            tbody {
+                payload.each { row ->
+                    tr {
+                        td(row.mat_id)
+                        td(row.name)
+                        td(row.units + " " + row.measure)
+                        td(row.threshold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+payload = pw.toString()]]></scripting:script>
+    </scripting:transformer>
+
     <flow name="main-application-flow" tracking:enable-default-events="true">
-        <imaps:inbound-endpoint host="${gmail.imap.host}" port="${gmail.imap.port}" user="${gmail.usr}" password="${gmail.pwd}" connector-ref="IMAP" responseTimeout="10000" doc:name="GMAIL"/>
-        <logger message="#['New email received with subject &quot;' + message.inboundProperties.subject +'&quot; from ' + message.inboundProperties.From]" level="INFO" doc:name="Email Received"/>
-        <expression-transformer doc:name="Get Attachments">
-            <return-argument evaluator="attachments-list" expression="*"/>
-        </expression-transformer>
-        <collection-splitter doc:name="Collection Splitter"/>
-        <custom-transformer class="cz.aimtec.gmail.TransformBodyPart" doc:name="Transform Body Part"/>
-        <expression-filter expression="#[flowVars.contentType == &quot;text/csv&quot;]" doc:name="Release CSV"/>
-        <logger message="#['CSV Content found ' + flowVars.file]" level="INFO" doc:name="CSV Content found"/>
-        <set-payload value="#[message.payload]" mimeType="application/csv" doc:name="Set CSV MIME Type"/>
-        <dw:transform-message doc:name="Transformation" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" metadata:id="da7a62f7-7e2d-4187-91ba-e2961f021940">
-            <dw:input-payload/>
-            <dw:set-payload><![CDATA[%dw 1.0
-%output application/json indent=false, skipNullOn="everywhere"
----
-payload]]></dw:set-payload>
-        </dw:transform-message>
-        <string-to-byte-array-transformer doc:name="String to Byte Array"/>
-        <set-attachment attachmentName="#[flowVars.file+'.txt']" value="#[message.payload]" contentType="application/json" doc:name="Attachment"/>
-        <set-payload value="Nazdárek" mimeType="text/plain" doc:name="Set Email Body"/>
-        <smtps:outbound-endpoint host="${gmail.smtp.host}" port="${gmail.smtp.port}" user="${gmail.usr}" password="${gmail.pwd}" to="#[message.inboundProperties.From]" from="${gmail.fromaddress}" subject="Hello" responseTimeout="10000" doc:name="SMTP"/>
-        <logger message="#['Response sent to ' + message.inboundProperties.From]" level="INFO" doc:name="Email Sent"/>
+        <imaps:inbound-endpoint host="${gmail.imap.host}" port="${gmail.imap.port}" user="${gmail.usr}" password="${gmail.pwd}" connector-ref="IMAP"
+            responseTimeout="10000" doc:name="GMAIL" />
+        <logger message="#['New email received with subject &quot;' + message.inboundProperties.subject +'&quot; from ' + message.inboundProperties.From]" level="INFO"
+            doc:name="Email Received" />
+        <choice doc:name="Choice">
+            <when expression="#[message.inboundProperties.subject contains &quot;stock_movements&quot;]">
+                <flow-ref name="stock-movements" doc:name="stock-movements" />
+            </when>
+            <otherwise>
+                <flow-ref name="unknown-email-subject" doc:name="unknown-email-subject" />
+            </otherwise>
+        </choice>
+        <exception-strategy ref="ChoiceExceptionStrategy" doc:name="Choice Exception Strategy" />
     </flow>
+    <flow name="quartz-material-threshold">
+        <quartz:inbound-endpoint jobName="StartReportCheck" repeatInterval="300000" responseTimeout="10000" doc:name="Quartz">
+            <quartz:event-generator-job/>
+        </quartz:inbound-endpoint>
+        <db:select config-ref="SQLite" doc:name="Database">
+            <db:parameterized-query><![CDATA[SELECT * FROM stocks_material_threshold;]]></db:parameterized-query>
+        </db:select>
+        <choice doc:name="Choice">
+            <when expression="#[payload.size() &gt; 0]">
+                <smtps:outbound-endpoint host="${gmail.smtp.host}" port="${gmail.smtp.port}" user="${gmail.usr}" password="${gmail.pwd}" to="${email.reports}" from="${gmail.fromaddress}" subject="Stocks material threshold report" responseTimeout="10000" transformer-refs="stocks_material_threshold" doc:name="SMTP">
+                    <property key="contentType" value="text/html"/>
+                </smtps:outbound-endpoint>
+            </when>
+            <otherwise>
+                <logger message="Nothing to do..." level="DEBUG" doc:name="Nothing"/>
+            </otherwise>
+        </choice>
+        <exception-strategy ref="ChoiceExceptionStrategy" doc:name="Reference Exception Strategy"/>
+    </flow>
+
+    <sub-flow name="stock-movements">
+        <expression-transformer doc:name="Get Attachments">
+            <return-argument evaluator="attachments-list" expression="*" />
+        </expression-transformer>
+        <collection-splitter doc:name="Collection Splitter">
+        </collection-splitter>
+        <component class="cz.aimtec.gmail.ExtractContent" doc:name="Extract Content" />
+        <expression-filter expression="#[flowVars.contentType == &quot;text/csv&quot;]" doc:name="Release CSV" />
+        <dw:transform-message doc:name="CSV to StockMovements" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" metadata:id="da7a62f7-7e2d-4187-91ba-e2961f021940">
+            <dw:input-payload doc:sample="stock_movements.csv" mimeType="application/csv">
+                <dw:reader-property name="separator" value=";" />
+            </dw:input-payload>
+            <dw:set-payload><![CDATA[%dw 1.0
+%input payload application/csv
+%output application/java
+---
+payload map ((payload01 , indexOfPayload01) -> {
+  mat_id: payload01.mat_id,
+  space_code: payload01.space_code,
+  stored: payload01.stored,
+  units: payload01.units
+} as :object {
+  class : "cz.aimtec.store.StockMovements"
+})]]></dw:set-payload>
+        </dw:transform-message>
+        <ee:multi-transactional action="ALWAYS_BEGIN" doc:name="Transactional">
+            <db:insert config-ref="SQLite" bulkMode="true" doc:name="INSERT stock_movements">
+                <db:parameterized-query><![CDATA[INSERT INTO stock_movements
+(created, stored, space_code, mat_id, units)
+VALUES(CURRENT_TIMESTAMP, #[payload.stored], #[payload.space_code], #[payload.mat_id], #[payload.units]);]]></db:parameterized-query>
+            </db:insert>
+        </ee:multi-transactional>
+        <db:select config-ref="SQLite" doc:name="SELECT stocks_by_materials">
+            <db:parameterized-query><![CDATA[SELECT * FROM stocks_by_materials;]]></db:parameterized-query>
+        </db:select>
+        <smtps:outbound-endpoint host="${gmail.smtp.host}" port="${gmail.smtp.port}" user="${gmail.usr}" password="${gmail.pwd}" to="#[message.inboundProperties.From]"
+            from="${gmail.fromaddress}" subject="Successfully processed" responseTimeout="10000" transformer-refs="stocks_by_materials" doc:name="SMTP">
+            <property key="contentType" value="text/html" />
+        </smtps:outbound-endpoint>
+        <flow-ref name="quartz-material-threshold" doc:name="quartz-material-threshold"/>
+    </sub-flow>
+
+    <sub-flow name="unknown-email-subject">
+        <set-payload value="No toto?" doc:name="Set Email Body" />
+        <smtps:outbound-endpoint host="${gmail.smtp.host}" port="${gmail.smtp.port}" user="${gmail.usr}" password="${gmail.pwd}" to="#[message.inboundProperties.From]"
+            from="${gmail.fromaddress}" subject="Unknown subject" responseTimeout="10000" doc:name="SMTP">
+            <property key="contentType" value="text/html" />
+        </smtps:outbound-endpoint>
+    </sub-flow>
+
+    <choice-exception-strategy name="ChoiceExceptionStrategy">
+        <rollback-exception-strategy maxRedeliveryAttempts="1" when="#[exception.causedBy(org.sqlite.SQLiteException)]" doc:name="SQLiteException">
+            <logger message="#[exception.message]" level="ERROR" doc:name="Logger" />
+            <set-payload value="#[exception.message]" doc:name="Set Payload" />
+            <smtps:outbound-endpoint host="${gmail.smtp.host}" port="${gmail.smtp.port}" user="${gmail.usr}" password="${gmail.pwd}" to="#[message.inboundProperties.From]"
+                from="${gmail.fromaddress}" subject="Database error" responseTimeout="10000" doc:name="SMTP">
+                <property key="contentType" value="text/html" />
+            </smtps:outbound-endpoint>
+        </rollback-exception-strategy>
+        <catch-exception-strategy when="#[exception.causedBy(java.lang.Exception)]" doc:name="GenericException">
+            <logger message="#[exception.message]" level="ERROR" doc:name="Logger" />
+            <set-payload value="#[exception.message]" doc:name="Set Payload" />
+            <smtps:outbound-endpoint host="${gmail.smtp.host}" port="${gmail.smtp.port}" user="${gmail.usr}" password="${gmail.pwd}" to="#[message.inboundProperties.From]"
+                from="${gmail.fromaddress}" subject="Unexpected error" responseTimeout="10000" doc:name="SMTP">
+                <property key="contentType" value="text/html" />
+            </smtps:outbound-endpoint>
+        </catch-exception-strategy>
+    </choice-exception-strategy>
+
 </mule>

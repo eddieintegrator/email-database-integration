@@ -14,17 +14,22 @@ import javax.mail.internet.MimeMultipart;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.mule.api.MuleEventContext;
 import org.mule.api.MuleMessage;
-import org.mule.api.transformer.TransformerException;
+import org.mule.api.lifecycle.Callable;
 import org.mule.api.transport.PropertyScope;
-import org.mule.transformer.AbstractMessageTransformer;
 
-public class TransformBodyPart extends AbstractMessageTransformer {
+public class ExtractContent implements Callable {
 
     protected final Logger logger = LogManager.getLogger(getClass());
 
+    public ExtractContent() {
+    }
+
     @Override
-    public Object transformMessage(MuleMessage message, String outputEncoding) throws TransformerException {
+    public Object onCall(MuleEventContext eventContext) throws Exception {
+
+        MuleMessage message = eventContext.getMessage();
 
         DataHandler dh = (DataHandler) message.getPayload();
         logger.debug("ContentType:" + dh.getContentType().replace("\r\n", "").replace("\t", ""));
@@ -33,16 +38,18 @@ public class TransformBodyPart extends AbstractMessageTransformer {
             // Multipart Body
             if (dh.getContent() instanceof MimeMultipart) {
                 logger.info("Multipart Body found");
+                String mimeType = "text/plain";
                 MimeMultipart mime = (MimeMultipart) dh.getContent();
                 for (int i = 0; i < mime.getCount(); i++) {
                     BodyPart part = mime.getBodyPart(i);
                     String contentType = part.getContentType().replace("\r\n", "").replace("\t", "");
                     logger.debug("PartType:" + contentType + "\n" + part.getContent().toString());
                     // Get plain/text body
-                    if ("text/plain".equals(contentType.split(";")[0])) {
+                    if (mimeType.equals(contentType.split(";")[0])) {
                         message.setProperty("content", "body", PropertyScope.INVOCATION);
-                        message.setProperty("contentType", "text/plain", PropertyScope.INVOCATION);
+                        message.setProperty("contentType", mimeType, PropertyScope.INVOCATION);
                         message.setPayload(part.getContent().toString());
+                        message.getDataType().setMimeType(mimeType);
                     }
                 }
             }
@@ -58,6 +65,7 @@ public class TransformBodyPart extends AbstractMessageTransformer {
                 message.setProperty("file", fileName, PropertyScope.INVOCATION);
                 message.setProperty("contentType", mimeType, PropertyScope.INVOCATION);
                 message.setPayload(result);
+                message.getDataType().setMimeType(mimeType);
             }
 
         } catch (IOException | MessagingException e) {
