@@ -5,7 +5,7 @@ public class StockMovements {
     private String stored;
     private String space_code;
     private String mat_id;
-    private String units;
+    private int units;
 
     public StockMovements() {
     }
@@ -34,11 +34,11 @@ public class StockMovements {
         this.mat_id = mat_id;
     }
 
-    public String getUnits() {
+    public int getUnits() {
         return units;
     }
 
-    public void setUnits(String units) {
+    public void setUnits(int units) {
         this.units = units;
     }
 

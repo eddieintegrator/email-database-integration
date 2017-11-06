@@ -12,11 +12,12 @@ import javax.mail.BodyPart;
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeMultipart;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.mule.api.MuleEventContext;
 import org.mule.api.MuleMessage;
 import org.mule.api.lifecycle.Callable;
+import org.mule.api.transformer.DataType;
 import org.mule.api.transport.PropertyScope;
 
 public class ExtractContent implements Callable {
@@ -29,8 +30,10 @@ public class ExtractContent implements Callable {
     @Override
     public Object onCall(MuleEventContext eventContext) throws Exception {
 
+        // Get MuleMessage object from context
         MuleMessage message = eventContext.getMessage();
 
+        // Get paylaod from MuleMesage as DataHandler object
         DataHandler dh = (DataHandler) message.getPayload();
         logger.debug("ContentType:" + dh.getContentType().replace("\r\n", "").replace("\t", ""));
 
@@ -46,10 +49,11 @@ public class ExtractContent implements Callable {
                     logger.debug("PartType:" + contentType + "\n" + part.getContent().toString());
                     // Get plain/text body
                     if (mimeType.equals(contentType.split(";")[0])) {
+                        DataType<?> dt = message.getDataType();
+                        dt.setMimeType(mimeType);
                         message.setProperty("content", "body", PropertyScope.INVOCATION);
                         message.setProperty("contentType", mimeType, PropertyScope.INVOCATION);
-                        message.setPayload(part.getContent().toString());
-                        message.getDataType().setMimeType(mimeType);
+                        message.setPayload(part.getContent().toString(), dt);
                     }
                 }
             }
@@ -59,13 +63,14 @@ public class ExtractContent implements Callable {
                 InputStream istream = dh.getInputStream();
                 String result = new BufferedReader(new InputStreamReader(istream)).lines().collect(Collectors.joining("\n"));
                 String mimeType = new MimetypesFileTypeMap().getContentType(fileName);
+                DataType<?> dt = message.getDataType();
+                dt.setMimeType(mimeType);
                 logger.info("Attachment found " + fileName + " " + mimeType);
                 logger.debug("Content:\n" + result);
                 message.setProperty("content", "attachment", PropertyScope.INVOCATION);
                 message.setProperty("file", fileName, PropertyScope.INVOCATION);
                 message.setProperty("contentType", mimeType, PropertyScope.INVOCATION);
-                message.setPayload(result);
-                message.getDataType().setMimeType(mimeType);
+                message.setPayload(result, dt);
             }
 
         } catch (IOException | MessagingException e) {
