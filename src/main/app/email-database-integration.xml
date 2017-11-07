@@ -25,7 +25,8 @@ http://www.mulesoft.org/schema/mule/quartz http://www.mulesoft.org/schema/mule/q
 
     <db:generic-config name="SQLite" url="jdbc:sqlite:${app.home}${file.separator}${sqlite.dbfile}" driverClassName="org.sqlite.JDBC" doc:name="Generic Database Configuration">
         <db:connection-properties>
-            <db:property key="encoding" value="UTF-8" />
+            <db:property key="foreign_keys" value="true"/>
+            <db:property key="encoding" value="UTF-8"/>
         </db:connection-properties>
     </db:generic-config>
 
