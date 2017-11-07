@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:quartz="http://www.mulesoft.org/schema/mule/quartz" xmlns:secure-property-placeholder="http://www.mulesoft.org/schema/mule/secure-property-placeholder"
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:quartz="http://www.mulesoft.org/schema/mule/quartz" xmlns:secure-property-placeholder="http://www.mulesoft.org/schema/mule/secure-property-placeholder"
     xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:email="http://www.mulesoft.org/schema/mule/email"
     xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans"
     xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:smtps="http://www.mulesoft.org/schema/mule/smtps" xmlns:imaps="http://www.mulesoft.org/schema/mule/imaps"
@@ -19,7 +19,8 @@ http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/em
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
 http://www.mulesoft.org/schema/mule/secure-property-placeholder http://www.mulesoft.org/schema/mule/secure-property-placeholder/current/mule-secure-property-placeholder.xsd
-http://www.mulesoft.org/schema/mule/quartz http://www.mulesoft.org/schema/mule/quartz/current/mule-quartz.xsd">
+http://www.mulesoft.org/schema/mule/quartz http://www.mulesoft.org/schema/mule/quartz/current/mule-quartz.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
 
     <imaps:connector name="IMAP" validateConnections="true" doc:name="IMAP" checkFrequency="30000" moveToFolder="${gmail.processed}"/>
 
@@ -150,13 +151,13 @@ payload = pw.toString()]]></scripting:script>
         </expression-transformer>
         <collection-splitter doc:name="Collection Splitter">
         </collection-splitter>
-        <component class="cz.aimtec.gmail.ExtractContent" doc:name="ExtractContent"/>
-        <dw:transform-message doc:name="CSV to StockMovements" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" metadata:id="da7a62f7-7e2d-4187-91ba-e2961f021940">
+        <expression-transformer mimeType="text/csv" expression="#[payload.getInputStream()]" doc:name="Get Input Stream"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="ffcb8141-8032-4161-ba45-33436a1f7d51">
             <dw:input-payload doc:sample="stock_movements.csv" mimeType="application/csv">
-                <dw:reader-property name="separator" value=";" />
+                <dw:reader-property name="streaming" value="true"/>
+                <dw:reader-property name="separator" value=";"/>
             </dw:input-payload>
             <dw:set-payload><![CDATA[%dw 1.0
-%input payload application/csv
 %output application/java
 ---
 payload map ((payload01 , indexOfPayload01) -> {
@@ -164,10 +165,9 @@ payload map ((payload01 , indexOfPayload01) -> {
   space_code: payload01.space_code,
   stored: payload01.stored,
   units: payload01.units
-} as :object {
-  class : "cz.aimtec.store.StockMovements"
 })]]></dw:set-payload>
         </dw:transform-message>
+
         <ee:multi-transactional action="ALWAYS_BEGIN" doc:name="Transactional">
             <db:insert config-ref="SQLite" bulkMode="true" doc:name="INSERT stock_movements">
                 <db:parameterized-query><![CDATA[INSERT INTO stock_movements

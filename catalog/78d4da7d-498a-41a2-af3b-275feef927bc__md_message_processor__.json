@@ -1,0 +1,11 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "stock_movements"
+        }
+    },
+    "outputMessageMetadata": {},
+    "id": "78d4da7d-498a-41a2-af3b-275feef927bc",
+    "version": "5.2.0.0"
+}
